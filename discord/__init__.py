@@ -47,7 +47,7 @@ from .template import Template
 from .widget import Widget, WidgetMember, WidgetChannel
 from .object import Object
 from .reaction import Reaction
-from . import utils, opus, abc
+from . import utils, opus, abc, rtp
 from .enums import *
 from .embeds import Embed
 from .mentions import AllowedMentions
