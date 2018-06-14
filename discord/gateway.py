@@ -283,6 +283,9 @@ class DiscordWebSocket:
         await ws.resume()
         return ws
 
+    def _dispatch(self, *args):
+        self._connection._state.dispatch(*args)
+
     def wait_for(self, event, predicate, result=None):
         """Waits for a DISPATCH'd event that meets the predicate.
 
@@ -447,6 +450,11 @@ class DiscordWebSocket:
             data['__shard_id__'] = self.shard_id
             log.info('Shard ID %s has successfully RESUMED session %s under trace %s.',
                      self.shard_id, self.session_id, ', '.join(trace))
+
+        elif event == 'VOICE_STATE_UPDATE':
+            pass
+
+        parser = 'parse_' + event.lower()
 
         try:
             func = self._discord_parsers[event]
@@ -765,6 +773,18 @@ class DiscordVoiceWebSocket:
             interval = data['heartbeat_interval'] / 1000.0
             self._keep_alive = VoiceKeepAliveHandler(ws=self, interval=min(interval, 5.0))
             self._keep_alive.start()
+        elif op == self.SPEAKING:
+            user_id = int(data['user_id'])
+            vc = self._connection
+            if vc.guild:
+                user = vc.guild.get_member(user_id)
+            else:
+                user = vc._state.get_user(user_id)
+            self._dispatch('voice_speaking_update', user, data['speaking'])
+        elif op == self.CLIENT_CONNECT:
+            self._connection._ssrcs[int(data['user_id'])] = data['audio_ssrc']
+        elif op == self.CLIENT_DISCONNECT:
+            self._connection._ssrcs.pop(int(data['user_id']), None)
 
     async def initial_connection(self, data):
         state = self._connection
