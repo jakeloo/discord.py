@@ -50,6 +50,8 @@ from .backoff import ExponentialBackoff
 from .gateway import *
 from .errors import ClientException, ConnectionClosed
 from .player import AudioPlayer, AudioSource
+from .reader import AudioReader, AudioSink
+from .utils import Bidict
 
 try:
     import nacl.secret
@@ -102,6 +104,8 @@ class VoiceClient:
         self._handshaking = False
         self._handshake_check = asyncio.Lock()
         self._handshake_complete = asyncio.Event()
+        # this will be used in the AudioReader thread
+        self._connecting = threading.Condition()
 
         self.mode = None
         self._connections = 0
@@ -109,6 +113,7 @@ class VoiceClient:
         self.timestamp = 0
         self._runner = None
         self._player = None
+        self._reader = None
         self.encoder = None
         self._lite_nonce = 0
         self._ssrcs - Bidict()
@@ -335,7 +340,7 @@ class VoiceClient:
 
     # audio related
 
-    def _get_voice_packet(self, data):
+    def _encrypt_voice_packet(self, data):
         header = bytearray(12)
 
         # Formulate rtp header
@@ -422,7 +427,7 @@ class VoiceClient:
         """Indicates if we're playing audio, but if we're paused."""
         return self._player is not None and self._player.is_paused()
 
-    def stop(self):
+    def stop_playing(self):
         """Stops playing audio."""
         if self._player:
             self._player.stop()
@@ -481,10 +486,43 @@ class VoiceClient:
             encoded_data = self.encoder.encode(data, self.encoder.SAMPLES_PER_FRAME)
         else:
             encoded_data = data
-        packet = self._get_voice_packet(encoded_data)
+        packet = self._encrypt_voice_packet(encoded_data)
         try:
             self.socket.sendto(packet, (self.endpoint_ip, self.voice_port))
         except BlockingIOError:
             log.warning('A packet has been dropped (seq: %s, timestamp: %s)', self.sequence, self.timestamp)
 
         self.checked_add('timestamp', opus.Encoder.SAMPLES_PER_FRAME, 4294967295)
+
+    def listen(self, sink):
+        """Receives audio into a :class:`AudioSource`. TODO: wording?
+
+        TODO: the rest of it
+        """
+
+        if not self.is_connected():
+            raise ClientException('Not connected to voice.')
+
+        if not isinstance(sink, AudioSink):
+            raise TypeError('sink must an AudioSink not {0.__class__.__name__}'.format(sink))
+
+        if self.is_listening():
+            raise ClientException('Already receiving audio.')
+
+        self._reader = AudioReader(sink, self)
+        self._reader.start()
+
+    def is_listening(self):
+        """Indicates if we're currently receiving audio."""
+        return self._reader is not None
+
+    def stop_listening(self):
+        """Stops receiving audio."""
+        if self._reader:
+            self._reader.stop()
+            self._reader = None
+
+    def stop(self):
+        """Stops playing and receiving audio."""
+        self.stop_playing()
+        self.stop_listening()
