@@ -798,7 +798,7 @@ class DiscordVoiceWebSocket:
             log.info('Voice RESUME failed.')
             await self.identify()
         elif op == self.SESSION_DESCRIPTION:
-            self._connection.mode = data['mode']
+            self._connection._mode = data['mode']
             await self.load_secret_key(data)
             await self._do_hacks()
         elif op == self.HELLO:
