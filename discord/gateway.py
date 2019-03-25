@@ -40,7 +40,8 @@ import aiohttp
 
 from . import utils
 from .activity import BaseActivity
-from .enums import SpeakingState
+from .activity import _ActivityTag
+from .speakingstate import SpeakingState
 from .errors import ConnectionClosed, InvalidArgument
 
 log = logging.getLogger(__name__)
@@ -767,7 +768,7 @@ class DiscordVoiceWebSocket:
 
         await self.send_as_json(payload)
 
-    async def speak(self, state=SpeakingState.voice):
+    async def speak(self, state=SpeakingState.active()):
         payload = {
             'op': self.SPEAKING,
             'd': {
@@ -808,8 +809,7 @@ class DiscordVoiceWebSocket:
             else:
                 user = vc._state.get_user(user_id)
 
-            vc._state.dispatch('voice_speaking_update', user, data['speaking'])
-
+            vc._state.dispatch('voice_speaking_update', user, SpeakingState(data['speaking']))
         elif op == self.CLIENT_CONNECT:
             self._connection._add_ssrc(int(data['user_id']), data['audio_ssrc'])
         elif op == self.CLIENT_DISCONNECT:
