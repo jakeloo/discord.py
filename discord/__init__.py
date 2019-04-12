@@ -53,6 +53,7 @@ from .embeds import Embed
 from .mentions import AllowedMentions
 from .shard import AutoShardedClient, ShardInfo
 from .player import *
+from .reader import *
 from .webhook import *
 from .voice_client import VoiceClient
 from .audit_logs import AuditLogChanges, AuditLogEntry, AuditLogDiff
