@@ -447,7 +447,10 @@ class VoiceClient:
 
         self.checked_add('sequence', 1, 65535)
         if encode:
-            encoded_data = self.encoder.encode(data, self.encoder.SAMPLES_PER_FRAME)
+            if self.encoder is None:
+                self.encoder = opus.Encoder()
+
+            encoded_data = self.encoder.encode(data, opus.Encoder.SAMPLES_PER_FRAME)
         else:
             encoded_data = data
         packet = self._encrypt_voice_packet(encoded_data)
@@ -456,7 +459,7 @@ class VoiceClient:
         except BlockingIOError:
             log.warning('A packet has been dropped (seq: %s, timestamp: %s)', self.sequence, self.timestamp)
 
-        self.checked_add('timestamp', self.encoder.SAMPLES_PER_FRAME, 4294967295)
+        self.checked_add('timestamp', opus.Encoder.SAMPLES_PER_FRAME, 4294967295)
 
     # send api related
 
