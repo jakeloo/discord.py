@@ -117,7 +117,7 @@ class VoiceClient:
         self._player = None
         self._reader = None
         self.encoder = None
-        self._ssrcs - Bidict()
+        self._ssrcs = Bidict()
 
     warn_nacl = not has_nacl
     supported_modes = (
